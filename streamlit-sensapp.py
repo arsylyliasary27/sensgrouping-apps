@@ -6,26 +6,25 @@ from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import linkage, dendrogram
 import numpy as np
 
-st.title("Sample Similarity Analyzer")
+st.title("Sensory Evaluation Result Analyzer (Grouping Method)")
 
 st.write("""
-Aplikasi ini menghitung kemiripan antar sampel berdasarkan pengelompokan panelis,
-lalu menampilkan heatmap dan dendrogram.
+This app helps you to analyze sensory grouping results by giving views of the sample characteristics closeness in the form of heatmap and dendrogram .
 """)
 
 # --- Input sampel ---
-st.header("1. Input Sample & Panelist Info")
+st.header("Input Sample & Panelist Information")
 
-num_samples = st.number_input("Jumlah sampel", min_value=2, value=7)
+num_samples = st.number_input("Number of samples", min_value=2, value=7)
 sample_names = st.text_area(
-    "Nama sampel (pisahkan dengan baris baru)",
-    value="SP3\nSP6\nSP9\nSP12\nR25\nR27\nR07"
+    "Sample Names (separate with a new line, use coded names)",
+    value="1\2\3\4\5\6\7"
 )
 
-num_panel = st.number_input("Jumlah panelis", min_value=1, value=6)
+num_panel = st.number_input("Number of panelists", min_value=1, value=6)
 panel_names = st.text_area(
-    "Label panelis (pisahkan baris baru)",
-    value="PanA\nPanB\nPanC\nPanD\nPanE\nPanF"
+    "Panelist Names (separate with a new line)",
+    value="A\B\C\D\E\F"
 )
 
 # Convert to lists
@@ -33,7 +32,7 @@ samples = sample_names.strip().split("\n")
 panels = panel_names.strip().split("\n")
 
 # --- Data input table ---
-st.header("2. Input Tabel Pengelompokan Panelis")
+st.header("Input Grouping Result")
 
 default_df = pd.DataFrame({
     "Sample": samples,
@@ -42,7 +41,7 @@ default_df = pd.DataFrame({
 
 df = st.data_editor(default_df, num_rows="dynamic")
 
-if st.button("Proses Data"):
+if st.button("Proceed"):
     df = df.set_index("Sample")
 
     # ===== Similarity Matrix =====
