@@ -126,9 +126,9 @@ if menu == "Descriptive Result (PCA)":
     panelist_names = panelist_names.strip().split("\n")
     params = parameter_list.strip().split("\n")
 
-    st.write(f"**Samples:** {sample_names}")
-    st.write(f"**Panelists:** {panelist_names}")
-    st.write(f"**Parameters:** {params}")
+    #st.write(f"**Samples:** {sample_names}")
+    #st.write(f"**Panelists:** {panelist_names}")
+    #st.write(f"**Parameters:** {params}")
 
     # Mapping nilai komentar
     label_options = ["more", "slightly more", "comparable", "slightly less", "less"]
