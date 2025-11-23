@@ -1,75 +1,56 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import linkage, dendrogram
-import numpy as np
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
-# Disable warnings from pyplot
-#st.set_option('deprecation.showPyplotGlobalUse', False)
-
-
-# ======================================
-# Fungsi Konversi Sensory Label -> Skor
-# ======================================
-def convert_label_to_score(label: str):
-    mapping = {
-        "more": 1,
-        "slightly more": 0.5,
-        "comparable": 0,
-        "slightly less": -0.5,
-        "less": -1
-    }
-    if isinstance(label, str):
-        label = label.strip().lower()
-    return mapping.get(label, np.nan)
-
-label_options = ["more", "slightly more", "comparable", "slightly less", "less"]
-
-
-# ======================================
+# ============================
 # Sidebar Menu
-# ======================================
-st.sidebar.title("Sensory Toolkit")
+# ============================
+
+st.sidebar.title("Menu")
 menu = st.sidebar.radio(
-    "Select Feature",
+    "Select analysis",
     ["Heatmap & Dendrogram", "Descriptive Result (PCA)"]
 )
 
+# =================================================================
+# ====================== 1. HEATMAP & DENDROGRAM ==================
+# =================================================================
 
-# =====================================================
-# ---------------  MENU 1: HEATMAP ---------------------
-# =====================================================
 if menu == "Heatmap & Dendrogram":
 
     st.title("Sensory Evaluation Result Analyzer (Grouping Method)")
 
     st.write("""
-    This app helps you analyze sensory grouping results 
-    by showing similarity matrices, heatmaps, and dendrograms.
+    This app helps you to analyze sensory grouping results by giving views 
+    of the sample characteristics closeness in the form of heatmap and dendrogram.
     """)
 
-    # Input sample-panel structure
+    # --- Input sampel ---
     st.header("Input Sample & Panelist Information")
 
     num_samples = st.number_input("Number of samples", min_value=2, value=7)
     sample_names = st.text_area(
-        "Sample Names (one per line, coded names recommended)",
+        "Sample Names (separate with new line, use coded names)",
         value="1\n2\n3\n4\n5\n6\n7"
     )
 
     num_panel = st.number_input("Number of panelists", min_value=1, value=6)
     panel_names = st.text_area(
-        "Panelist Names (one per line)",
+        "Panelist Names (separate with new line)",
         value="A\nB\nC\nD\nE\nF"
     )
 
+    # Convert to lists
     samples = sample_names.strip().split("\n")
     panels = panel_names.strip().split("\n")
 
-    # Input grouping data table
+    # --- Data input table ---
     st.header("Input Grouping Result")
 
     default_df = pd.DataFrame({
@@ -77,12 +58,12 @@ if menu == "Heatmap & Dendrogram":
         **{p: "" for p in panels}
     })
 
-    df = st.data_editor(default_df, num_rows="dynamic")
+    df = st.data_editor(default_df, width="stretch")
 
     if st.button("Proceed"):
         df = df.set_index("Sample")
 
-        # Similarity Matrix
+        # ===== Similarity Matrix =====
         similarity = pd.DataFrame(0, index=samples, columns=samples)
 
         for i in samples:
@@ -95,14 +76,14 @@ if menu == "Heatmap & Dendrogram":
         st.subheader("Similarity Matrix")
         st.dataframe(similarity)
 
-        # Heatmap
+        # ===== Heatmap =====
         st.subheader("Heatmap")
 
         fig, ax = plt.subplots(figsize=(8, 6))
         sns.heatmap(similarity, annot=True, cmap="Blues", fmt="d", ax=ax)
         st.pyplot(fig)
 
-        # Dendrogram
+        # ===== Dendrogram =====
         st.subheader("Dendrogram")
 
         max_similarity = df.shape[1]
@@ -115,106 +96,133 @@ if menu == "Heatmap & Dendrogram":
         dendrogram(linked, labels=similarity.index.tolist(), ax=ax2)
         st.pyplot(fig2)
 
+# =================================================================
+# ========================== 2. PCA MODULE =========================
+# =================================================================
 
-# =====================================================
-# ----------------  MENU 2: PCA RESULT  ----------------
-# =====================================================
-elif menu == "Descriptive Result (PCA)":
+if menu == "Descriptive Result (PCA)":
 
-    st.title("Descriptive Sensory Result Analyzer (PCA)")
-
-    # ============================
-    # Konfigurasi Input
-    # ============================
-    st.header("1. Configuration")
-
-    n_samples = st.number_input("Number of Samples", min_value=1, value=5)
-    sample_names = []
-    for i in range(n_samples):
-        sample_names.append(st.text_input(f"Sample {i+1}", value=f"S{i+1}"))
-
-    n_panelists = st.number_input("Number of Panelists", min_value=1, value=7)
-    panelist_names = []
-    for i in range(n_panelists):
-        panelist_names.append(st.text_input(f"Panelist {i+1}", value=f"P{i+1}"))
-
-    st.header("2. Sensory Parameters")
-    n_params = st.number_input("Number of Parameters", min_value=1, value=8)
-    params = []
-    for i in range(n_params):
-        params.append(st.text_input(f"Parameter {i+1}", value=f"Param{i+1}"))
+    st.title("Sensory Descriptive Analysis (PCA)")
 
     # ============================
-    # Input Data Sensoris
+    # Input Sampel & Panelis
     # ============================
-    st.header("3. Panelist Comments Input")
+    st.header("1. Input Sample & Panelist Information")
 
-    data_input = pd.DataFrame(
-        "",
-        index=pd.MultiIndex.from_product([panelist_names, sample_names], names=["Panelist", "Sample"]),
-        columns=params
+    sample_names = st.text_area(
+        "Sample Names (one per line)",
+        value="Sample1\nSample2\nSample3\nSample4\nSample5"
     )
+    panelist_names = st.text_area(
+        "Panelist Names (one per line)",
+        value="P1\nP2\nP3\nP4\nP5\nP6\nP7"
+    )
+    parameter_list = st.text_area(
+        "Sensory Parameters (one per line)",
+        value="Eggy\nRancid\nCowy\nBitter\nSweet\nMilkiness\nCreamy\nStrange"
+    )
+
+    sample_names = sample_names.strip().split("\n")
+    panelist_names = panelist_names.strip().split("\n")
+    params = parameter_list.strip().split("\n")
+
+    st.write(f"**Samples:** {sample_names}")
+    st.write(f"**Panelists:** {panelist_names}")
+    st.write(f"**Parameters:** {params}")
+
+    # Mapping nilai komentar
+    label_options = ["more", "slightly more", "comparable", "slightly less", "less"]
+    score_map = {
+        "more": 1,
+        "slightly more": 0.5,
+        "comparable": 0,
+        "slightly less": -0.5,
+        "less": -1,
+    }
+
+    def convert_label_to_score(x):
+        if pd.isna(x) or x == "":
+            return np.nan
+        return score_map.get(x, np.nan)
+
+    # ============================
+    # Input Data Sensoris (FIXED)
+    # ============================
+    st.header("2. Panelist Comments Input")
+
+    rows = []
+    for pl in panelist_names:
+        for sm in sample_names:
+            row = {"Panelist": pl, "Sample": sm}
+            for p in params:
+                row[p] = ""
+            rows.append(row)
+
+    data_input = pd.DataFrame(rows)
+
+    col_config = {
+        "Panelist": st.column_config.TextColumn(disabled=True),
+        "Sample": st.column_config.TextColumn(disabled=True)
+    }
+
+    for p in params:
+        col_config[p] = st.column_config.SelectboxColumn(
+            options=label_options,
+            required=False
+        )
 
     edited_data = st.data_editor(
         data_input,
-        use_container_width=True,
-        column_config={
-            col: st.column_config.SelectboxColumn(
-                options=label_options,
-                required=False
-            )
-            for col in params
-        }
+        width="stretch",
+        column_config=col_config
     )
 
     # ============================
-    # PROCESS DATA
+    # PCA Calculation
     # ============================
     if st.button("Run PCA Analysis"):
-
-        st.header("4. Numerical Conversion (Safe Mapping)")
-
+        
+        # Convert to numeric
         numeric_data = edited_data.copy()
         for col in params:
             numeric_data[col] = numeric_data[col].apply(convert_label_to_score)
 
-        st.write("Converted Numerical Data:")
-        st.dataframe(numeric_data)
-
-        # Rata-rata per sampel
-        st.header("5. Average per Sample")
-        mean_by_sample = numeric_data.groupby("Sample").mean()
+        # Hitung mean per sample
+        mean_by_sample = numeric_data.groupby("Sample")[params].mean()
+        st.subheader("Average Score Per Sample")
         st.dataframe(mean_by_sample)
 
+        # Standardize
+        scaler = StandardScaler()
+        scaled = scaler.fit_transform(mean_by_sample)
+
         # PCA
-        st.header("6. PCA Analysis")
-        X = mean_by_sample.fillna(0).values
         pca = PCA(n_components=2)
-        scores = pca.fit_transform(X)
-        loadings = pca.components_.T
+        pcs = pca.fit_transform(scaled)
 
-        st.write(f"PC1 Explained Variance: {pca.explained_variance_ratio_[0]:.2f}")
-        st.write(f"PC2 Explained Variance: {pca.explained_variance_ratio_[1]:.2f}")
+        pc_df = pd.DataFrame(
+            pcs,
+            columns=["PC1", "PC2"],
+            index=mean_by_sample.index
+        )
 
-        # Biplot
-        st.subheader("PCA Biplot")
+        st.subheader("PCA Score Plot (PC1 vs PC2)")
+        fig, ax = plt.subplots(figsize=(7, 6))
+        ax.scatter(pc_df["PC1"], pc_df["PC2"])
 
-        fig, ax = plt.subplots(figsize=(8, 6))
+        for sample in mean_by_sample.index:
+            ax.text(pc_df.loc[sample, "PC1"], pc_df.loc[sample, "PC2"], sample)
 
-        ax.scatter(scores[:, 0], scores[:, 1])
-        for i, name in enumerate(sample_names):
-            ax.text(scores[i, 0], scores[i, 1], name)
-
-        for i, param in enumerate(params):
-            ax.arrow(0, 0, loadings[i, 0], loadings[i, 1],
-                     head_width=0.02, color='red')
-            ax.text(loadings[i, 0], loadings[i, 1], param, color='red')
-
-        ax.axhline(0, color="black", linewidth=0.5)
-        ax.axvline(0, color="black", linewidth=0.5)
         ax.set_xlabel("PC1")
         ax.set_ylabel("PC2")
-
         st.pyplot(fig)
 
-        st.success("PCA Analysis Completed!")
+        # PCA Loadings
+        loadings = pd.DataFrame(
+            pca.components_.T,
+            index=params,
+            columns=["PC1", "PC2"]
+        )
+
+        st.subheader("PCA Loadings")
+        st.dataframe(loadings)
