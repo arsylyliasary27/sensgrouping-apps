@@ -8,7 +8,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 
 # Disable warnings from pyplot
-st.set_option('deprecation.showPyplotGlobalUse', False)
+#st.set_option('deprecation.showPyplotGlobalUse', False)
 
 
 # ======================================
