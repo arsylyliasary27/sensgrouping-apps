@@ -8,9 +8,7 @@ from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-# ============================
-# Sidebar Menu
-# ============================
+
 
 st.sidebar.title("Menu")
 menu = st.sidebar.radio(
@@ -18,9 +16,7 @@ menu = st.sidebar.radio(
     ["Heatmap & Dendrogram", "Descriptive Result (PCA)"]
 )
 
-# =================================================================
-# ====================== 1. HEATMAP & DENDROGRAM ==================
-# =================================================================
+
 
 if menu == "Heatmap & Dendrogram":
 
@@ -31,7 +27,7 @@ if menu == "Heatmap & Dendrogram":
     of the sample characteristics closeness in the form of heatmap and dendrogram.
     """)
 
-    # --- Input sampel ---
+
     st.header("Input Sample & Panelist Information")
 
     num_samples = st.number_input("Number of samples", min_value=2, value=7)
@@ -46,11 +42,11 @@ if menu == "Heatmap & Dendrogram":
         value="A\nB\nC\nD\nE\nF"
     )
 
-    # Convert to lists
+
     samples = sample_names.strip().split("\n")
     panels = panel_names.strip().split("\n")
 
-    # --- Data input table ---
+
     st.header("Input Grouping Result")
 
     default_df = pd.DataFrame({
@@ -63,7 +59,7 @@ if menu == "Heatmap & Dendrogram":
     if st.button("Proceed"):
         df = df.set_index("Sample")
 
-        # ===== Similarity Matrix =====
+
         similarity = pd.DataFrame(0, index=samples, columns=samples)
 
         for i in samples:
@@ -76,14 +72,12 @@ if menu == "Heatmap & Dendrogram":
         st.subheader("Similarity Matrix")
         st.dataframe(similarity)
 
-        # ===== Heatmap =====
         st.subheader("Heatmap")
 
         fig, ax = plt.subplots(figsize=(8, 6))
         sns.heatmap(similarity, annot=True, cmap="Blues", fmt="d", ax=ax)
         st.pyplot(fig)
 
-        # ===== Dendrogram =====
         st.subheader("Dendrogram")
 
         max_similarity = df.shape[1]
@@ -96,17 +90,12 @@ if menu == "Heatmap & Dendrogram":
         dendrogram(linked, labels=similarity.index.tolist(), ax=ax2)
         st.pyplot(fig2)
 
-# =================================================================
-# ========================== 2. PCA MODULE =========================
-# =================================================================
 
 if menu == "Descriptive Result (PCA)":
 
     st.title("Sensory Descriptive Analysis (PCA)")
 
-    # ============================
-    # Input Sampel & Panelis
-    # ============================
+
     st.header("1. Input Sample & Panelist Information")
 
     sample_names = st.text_area(
@@ -126,11 +115,7 @@ if menu == "Descriptive Result (PCA)":
     panelist_names = panelist_names.strip().split("\n")
     params = parameter_list.strip().split("\n")
 
-    #st.write(f"**Samples:** {sample_names}")
-    #st.write(f"**Panelists:** {panelist_names}")
-    #st.write(f"**Parameters:** {params}")
 
-    # Mapping nilai komentar
     label_options = ["more", "slightly more", "comparable", "slightly less", "less"]
     score_map = {
         "more": 1,
@@ -145,9 +130,7 @@ if menu == "Descriptive Result (PCA)":
             return np.nan
         return score_map.get(x, np.nan)
 
-    # ============================
-    # Input Data Sensoris (FIXED)
-    # ============================
+ 
     st.header("2. Panelist Comments Input")
 
     rows = []
@@ -177,26 +160,23 @@ if menu == "Descriptive Result (PCA)":
         column_config=col_config
     )
 
-    # ============================
-    # PCA Calculation
-    # ============================
+
     if st.button("Run PCA Analysis"):
         
-        # Convert to numeric
+ 
         numeric_data = edited_data.copy()
         for col in params:
             numeric_data[col] = numeric_data[col].apply(convert_label_to_score)
 
-        # Hitung mean per sample
         mean_by_sample = numeric_data.groupby("Sample")[params].mean()
         st.subheader("Average Score Per Sample")
         st.dataframe(mean_by_sample)
 
-        # Standardize
+
         scaler = StandardScaler()
         scaled = scaler.fit_transform(mean_by_sample)
 
-        # PCA
+
         pca = PCA(n_components=2)
         pcs = pca.fit_transform(scaled)
 
@@ -217,7 +197,7 @@ if menu == "Descriptive Result (PCA)":
         ax.set_ylabel("PC2")
         st.pyplot(fig)
 
-        # PCA Loadings
+
         loadings = pd.DataFrame(
             pca.components_.T,
             index=params,
