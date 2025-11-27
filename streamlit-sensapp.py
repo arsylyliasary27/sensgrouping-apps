@@ -18,7 +18,7 @@ menu = st.sidebar.radio(
 
 
 
-if menu == "Heatmap & Dendrogram (for Grouping Method)":
+if menu == "Heatmap & Dendrogram":
 
     st.title("Heatmap & Dendrogram (for Grouping Method)")
 
