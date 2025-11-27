@@ -7,7 +7,7 @@ from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-
+import io
 
 
 st.sidebar.title("Menu")
@@ -18,9 +18,9 @@ menu = st.sidebar.radio(
 
 
 
-if menu == "Heatmap & Dendrogram":
+if menu == "Heatmap & Dendrogram (for Grouping Method)":
 
-    st.title("Sensory Evaluation Result Analyzer (Grouping Method)")
+    st.title("Heatmap & Dendrogram (for Grouping Method)")
 
     st.write("""
     This app helps you to analyze sensory grouping results by giving views 
@@ -78,6 +78,16 @@ if menu == "Heatmap & Dendrogram":
         sns.heatmap(similarity, annot=True, cmap="Blues", fmt="d", ax=ax)
         st.pyplot(fig)
 
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
+        buf.seek(0)
+
+        st.download_button(
+            label="Download heatmap plot (PNG)",
+            data=buf,
+            file_name="pca_plot.png",
+            mime="image/png")
+        
         st.subheader("Dendrogram")
 
         max_similarity = df.shape[1]
@@ -90,13 +100,23 @@ if menu == "Heatmap & Dendrogram":
         dendrogram(linked, labels=similarity.index.tolist(), ax=ax2)
         st.pyplot(fig2)
 
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
+        buf.seek(0)
+
+        st.download_button(
+            label="Download dendrogram plot (PNG)",
+            data=buf,
+            file_name="pca_plot.png",
+            mime="image/png"
+        )
 
 if menu == "Descriptive Result (PCA)":
 
-    st.title("Sensory Descriptive Analysis (PCA)")
+    st.title("Sensory Descriptive Analysis (PCA) (for any method contains descriptive output)")
 
 
-    st.header("1. Input Sample & Panelist Information")
+    st.header("Input Sample & Panelist Information")
 
     sample_names = st.text_area(
         "Sample Names (one per line)",
@@ -131,7 +151,7 @@ if menu == "Descriptive Result (PCA)":
         return score_map.get(x, np.nan)
 
  
-    st.header("2. Panelist Comments Input")
+    st.header("Panelist Comments Input")
 
     rows = []
     for pl in panelist_names:
@@ -196,7 +216,16 @@ if menu == "Descriptive Result (PCA)":
         ax.set_xlabel("PC1")
         ax.set_ylabel("PC2")
         st.pyplot(fig)
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
+        buf.seek(0)
 
+        st.download_button(
+            label="Download PCA plot (PNG)",
+            data=buf,
+            file_name="pca_plot.png",
+            mime="image/png"
+        )
 
         loadings = pd.DataFrame(
             pca.components_.T,
