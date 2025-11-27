@@ -10,29 +10,33 @@ from sklearn.preprocessing import StandardScaler
 import io
 
 
+# ---------------------------------------------------
+# Sidebar Navigation
+# ---------------------------------------------------
 st.sidebar.title("Menu")
 menu = st.sidebar.radio(
     "Select analysis",
-    ["Heatmap & Dendrogram", "Descriptive Result (PCA)"]
+    ["Heatmap & Dendrogram", "Descriptive Result (PCA)", "Radar Chart (Profil Sensori)"]
 )
 
 
-
+# ===================================================
+# 1. HEATMAP & DENDROGRAM
+# ===================================================
 if menu == "Heatmap & Dendrogram":
 
     st.title("Heatmap & Dendrogram (for Grouping Method)")
 
     st.write("""
-    This app helps you to analyze sensory grouping results by giving views 
-    of the sample characteristics closeness in the form of heatmap and dendrogram.
+    This app helps you analyze sensory grouping results by visualizing 
+    sample similarity in heatmap and dendrogram form.
     """)
-
 
     st.header("Input Sample & Panelist Information")
 
     num_samples = st.number_input("Number of samples", min_value=2, value=7)
     sample_names = st.text_area(
-        "Sample Names (separate with new line, use coded names)",
+        "Sample Names (separate with new line)",
         value="1\n2\n3\n4\n5\n6\n7"
     )
 
@@ -42,10 +46,8 @@ if menu == "Heatmap & Dendrogram":
         value="A\nB\nC\nD\nE\nF"
     )
 
-
     samples = sample_names.strip().split("\n")
     panels = panel_names.strip().split("\n")
-
 
     st.header("Input Grouping Result")
 
@@ -58,7 +60,6 @@ if menu == "Heatmap & Dendrogram":
 
     if st.button("Proceed"):
         df = df.set_index("Sample")
-
 
         similarity = pd.DataFrame(0, index=samples, columns=samples)
 
@@ -85,13 +86,14 @@ if menu == "Heatmap & Dendrogram":
         st.download_button(
             label="Download heatmap plot (PNG)",
             data=buf,
-            file_name="pca_plot.png",
-            mime="image/png")
-        
+            file_name="heatmap.png",
+            mime="image/png"
+        )
+
         st.subheader("Dendrogram")
 
-        max_similarity = df.shape[1]
-        distance = max_similarity - similarity
+        max_sim = df.shape[1]
+        distance = max_sim - similarity
         np.fill_diagonal(distance.values, 0)
 
         linked = linkage(squareform(distance), method="average")
@@ -100,21 +102,25 @@ if menu == "Heatmap & Dendrogram":
         dendrogram(linked, labels=similarity.index.tolist(), ax=ax2)
         st.pyplot(fig2)
 
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
-        buf.seek(0)
+        buf2 = io.BytesIO()
+        fig2.savefig(buf2, format="png", dpi=300, bbox_inches="tight")
+        buf2.seek(0)
 
         st.download_button(
             label="Download dendrogram plot (PNG)",
-            data=buf,
-            file_name="pca_plot.png",
+            data=buf2,
+            file_name="dendrogram.png",
             mime="image/png"
         )
 
-if menu == "Descriptive Result (PCA)":
 
-    st.title("Sensory Descriptive Analysis (PCA) (for any method contains descriptive output)")
 
+# ===================================================
+# 2. DESCRIPTIVE RESULT (PCA)
+# ===================================================
+elif menu == "Descriptive Result (PCA)":
+
+    st.title("Sensory Descriptive Analysis (PCA)")
 
     st.header("Input Sample & Panelist Information")
 
@@ -135,7 +141,6 @@ if menu == "Descriptive Result (PCA)":
     panelist_names = panelist_names.strip().split("\n")
     params = parameter_list.strip().split("\n")
 
-
     label_options = ["more", "slightly more", "comparable", "slightly less", "less"]
     score_map = {
         "more": 1,
@@ -150,7 +155,6 @@ if menu == "Descriptive Result (PCA)":
             return np.nan
         return score_map.get(x, np.nan)
 
- 
     st.header("Panelist Comments Input")
 
     rows = []
@@ -169,10 +173,7 @@ if menu == "Descriptive Result (PCA)":
     }
 
     for p in params:
-        col_config[p] = st.column_config.SelectboxColumn(
-            options=label_options,
-            required=False
-        )
+        col_config[p] = st.column_config.SelectboxColumn(options=label_options)
 
     edited_data = st.data_editor(
         data_input,
@@ -180,42 +181,32 @@ if menu == "Descriptive Result (PCA)":
         column_config=col_config
     )
 
-
     if st.button("Run PCA Analysis"):
-        
- 
-        numeric_data = edited_data.copy()
+        numeric = edited_data.copy()
         for col in params:
-            numeric_data[col] = numeric_data[col].apply(convert_label_to_score)
+            numeric[col] = numeric[col].apply(convert_label_to_score)
 
-        mean_by_sample = numeric_data.groupby("Sample")[params].mean()
+        mean_by_sample = numeric.groupby("Sample")[params].mean()
+
         st.subheader("Average Score Per Sample")
         st.dataframe(mean_by_sample)
-
 
         scaler = StandardScaler()
         scaled = scaler.fit_transform(mean_by_sample)
 
-
         pca = PCA(n_components=2)
         pcs = pca.fit_transform(scaled)
 
-        pc_df = pd.DataFrame(
-            pcs,
-            columns=["PC1", "PC2"],
-            index=mean_by_sample.index
-        )
+        pc_df = pd.DataFrame(pcs, columns=["PC1", "PC2"], index=mean_by_sample.index)
 
-        st.subheader("PCA Score Plot (PC1 vs PC2)")
+        st.subheader("PCA Score Plot")
         fig, ax = plt.subplots(figsize=(7, 6))
         ax.scatter(pc_df["PC1"], pc_df["PC2"])
+        for s in pc_df.index:
+            ax.text(pc_df.loc[s, "PC1"], pc_df.loc[s, "PC2"], s)
 
-        for sample in mean_by_sample.index:
-            ax.text(pc_df.loc[sample, "PC1"], pc_df.loc[sample, "PC2"], sample)
-
-        ax.set_xlabel("PC1")
-        ax.set_ylabel("PC2")
         st.pyplot(fig)
+
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
         buf.seek(0)
@@ -227,11 +218,135 @@ if menu == "Descriptive Result (PCA)":
             mime="image/png"
         )
 
-        loadings = pd.DataFrame(
-            pca.components_.T,
-            index=params,
-            columns=["PC1", "PC2"]
-        )
+        loadings = pd.DataFrame(pca.components_.T, index=params, columns=["PC1", "PC2"])
 
         st.subheader("PCA Loadings")
         st.dataframe(loadings)
+
+
+
+# ===================================================
+# 3. RADAR CHART (UNTRAINED & TRAINED PANELISTS)
+# ===================================================
+elif menu == "Radar Chart (Profil Sensori)":
+
+    st.title("Radar Chart – Sensory Profile Visualization")
+
+    mode = st.radio("Select Panelist Mode", ["Untrained Panelist", "Trained Panelist"])
+
+    st.header("Input Sample & Parameter Information")
+
+    sample_names = st.text_area(
+        "Sample Names (one per line)",
+        value="Sample1\nSample2\nSample3"
+    )
+    parameter_list = st.text_area(
+        "Sensory Parameters (one per line)",
+        value="Sweet\nBitter\nCreamy\nRancid\nEggy"
+    )
+
+    samples = sample_names.strip().split("\n")
+    params = parameter_list.strip().split("\n")
+
+    # ===========================================
+    # UNTRAINED PANELIST MODE
+    # ===========================================
+    if mode == "Untrained Panelist":
+        st.subheader("Input: Parameter mentioned by each panelist")
+
+        num_panel = st.number_input("Number of panelists", min_value=1, value=5)
+
+        rows = []
+        for i in range(num_panel):
+            row = {"Panelist": f"P{i+1}"}
+            for p in params:
+                row[p] = False
+            rows.append(row)
+
+        df = pd.DataFrame(rows)
+
+        col_cfg = {"Panelist": st.column_config.TextColumn(disabled=True)}
+        for p in params:
+            col_cfg[p] = st.column_config.CheckboxColumn()
+
+        edited = st.data_editor(df, width="stretch", column_config=col_cfg)
+
+        if st.button("Generate Radar Chart"):
+            scores = edited[params].sum()
+
+            fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+
+            angles = np.linspace(0, 2 * np.pi, len(params), endpoint=False)
+            angles = np.concatenate((angles, [angles[0]]))
+            values = np.concatenate((scores.values, [scores.values[0]]))
+
+            ax.plot(angles, values)
+            ax.fill(angles, values, alpha=0.25)
+            ax.set_xticks(angles[:-1])
+            ax.set_xticklabels(params)
+            ax.set_title("Untrained Panelist – Sensory Profile")
+
+            st.pyplot(fig)
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
+            buf.seek(0)
+
+            st.download_button(
+                label="Download Radar Chart (PNG)",
+                data=buf,
+                file_name="radar_untrained.png",
+                mime="image/png"
+            )
+
+    # ===========================================
+    # TRAINED PANELIST MODE
+    # ===========================================
+    else:
+        st.subheader("Input: Scoring 0–5 for each Panelist per Parameter")
+
+        num_panel = st.number_input("Number of panelists", min_value=1, value=5)
+
+        rows = []
+        for i in range(num_panel):
+            row = {"Panelist": f"P{i+1}"}
+            for p in params:
+                row[p] = 0
+            rows.append(row)
+
+        df = pd.DataFrame(rows)
+
+        col_cfg = {"Panelist": st.column_config.TextColumn(disabled=True)}
+        for p in params:
+            col_cfg[p] = st.column_config.NumberColumn(min_value=0, max_value=5, step=1)
+
+        edited = st.data_editor(df, width="stretch", column_config=col_cfg)
+
+        if st.button("Generate Radar Chart"):
+            scores = edited[params].mean()
+
+            fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+
+            angles = np.linspace(0, 2 * np.pi, len(params), endpoint=False)
+            angles = np.concatenate((angles, [angles[0]]))
+            values = np.concatenate((scores.values, [scores.values[0]]))
+
+            ax.plot(angles, values)
+            ax.fill(angles, values, alpha=0.25)
+            ax.set_xticks(angles[:-1])
+            ax.set_xticklabels(params)
+            ax.set_title("Trained Panelist – Average Sensory Profile (0–5)")
+
+            st.pyplot(fig)
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
+            buf.seek(0)
+
+            st.download_button(
+                label="Download Radar Chart (PNG)",
+                data=buf,
+                file_name="radar_trained.png",
+                mime="image/png"
+            )
+
