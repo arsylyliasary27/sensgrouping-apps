@@ -251,48 +251,58 @@ elif menu == "Radar Chart (Profil Sensori)":
     # ===========================================
     # UNTRAINED PANELIST MODE
     # ===========================================
-    if mode == "Untrained Panelist":
-        st.subheader("Input: Parameter mentioned by each panelist")
+   # UNTRAINED PANELIST MODE
+if mode == "Untrained Panelist":
+    st.subheader("Input: Parameter mentioned by each panelist")
 
-        num_panel = st.number_input("Number of panelists", min_value=1, value=5)
+    num_panel = st.number_input("Number of panelists", min_value=1, value=5)
 
-        rows = []
-        for i in range(num_panel):
-            row = {"Panelist": f"P{i+1}"}
+    # Buat rows untuk setiap panelist × sample
+    rows = []
+    for i in range(num_panel):
+        for sm in samples:  # pastikan setiap sample muncul
+            row = {"Panelist": f"P{i+1}", "Sample": sm}
             for p in params:
                 row[p] = False
             rows.append(row)
 
-        df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
 
-        col_cfg = {"Panelist": st.column_config.TextColumn(disabled=True)}
-        for p in params:
-            col_cfg[p] = st.column_config.CheckboxColumn()
+    col_cfg = {
+        "Panelist": st.column_config.TextColumn(disabled=True),
+        "Sample": st.column_config.TextColumn(disabled=True)
+    }
+    for p in params:
+        col_cfg[p] = st.column_config.CheckboxColumn()
 
-        edited = st.data_editor(df, width="stretch", column_config=col_cfg)
+    edited = st.data_editor(df, width="stretch", column_config=col_cfg)
 
-        if st.button("Generate Radar Chart"):
-            scores = edited[params].sum()
+    if st.button("Generate Radar Chart"):
+        # Hitung jumlah cek per parameter untuk setiap sample
+        scores = edited.groupby("Sample")[params].sum()
 
-            fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+        fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+        angles = np.linspace(0, 2 * np.pi, len(params), endpoint=False)
 
-            angles = np.linspace(0, 2 * np.pi, len(params), endpoint=False)
-            angles = np.concatenate((angles, [angles[0]]))
-            values = np.concatenate((scores.values, [scores.values[0]]))
+        for sm in scores.index:
+            values = np.concatenate((scores.loc[sm].values, [scores.loc[sm].values[0]]))
+            angles_loop = np.concatenate((angles, [angles[0]]))
+            ax.plot(angles_loop, values, label=sm)
+            ax.fill(angles_loop, values, alpha=0.1)
 
-            ax.plot(angles, values)
-            ax.fill(angles, values, alpha=0.25)
-            ax.set_xticks(angles[:-1])
-            ax.set_xticklabels(params)
-            ax.set_title("Untrained Panelist – Sensory Profile")
+        ax.set_xticks(angles)
+        ax.set_xticklabels(params)
+        ax.set_title("Untrained Panelist – Sensory Profile")
+        ax.legend()
 
-            st.pyplot(fig)
+        st.pyplot(fig)
 
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
-            buf.seek(0)
 
-            st.download_button(
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
+        buf.seek(0)
+
+        st.download_button(
                 label="Download Radar Chart (PNG)",
                 data=buf,
                 file_name="radar_untrained.png",
@@ -302,48 +312,58 @@ elif menu == "Radar Chart (Profil Sensori)":
     # ===========================================
     # TRAINED PANELIST MODE
     # ===========================================
-    else:
-        st.subheader("Input: Scoring 0–5 for each Panelist per Parameter")
+   # TRAINED PANELIST MODE
+else:
+    st.subheader("Input: Scoring 0–5 for each Panelist per Parameter")
 
-        num_panel = st.number_input("Number of panelists", min_value=1, value=5)
+    num_panel = st.number_input("Number of panelists", min_value=1, value=5)
 
-        rows = []
-        for i in range(num_panel):
-            row = {"Panelist": f"P{i+1}"}
+    # Buat rows untuk setiap panelist × sample
+    rows = []
+    for i in range(num_panel):
+        for sm in samples:  # pastikan setiap sample muncul
+            row = {"Panelist": f"P{i+1}", "Sample": sm}
             for p in params:
                 row[p] = 0
             rows.append(row)
 
-        df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
 
-        col_cfg = {"Panelist": st.column_config.TextColumn(disabled=True)}
-        for p in params:
-            col_cfg[p] = st.column_config.NumberColumn(min_value=0, max_value=5, step=1)
+    col_cfg = {
+        "Panelist": st.column_config.TextColumn(disabled=True),
+        "Sample": st.column_config.TextColumn(disabled=True)
+    }
+    for p in params:
+        col_cfg[p] = st.column_config.NumberColumn(min_value=0, max_value=5, step=1)
 
-        edited = st.data_editor(df, width="stretch", column_config=col_cfg)
+    edited = st.data_editor(df, width="stretch", column_config=col_cfg)
 
-        if st.button("Generate Radar Chart"):
-            scores = edited[params].mean()
+    if st.button("Generate Radar Chart"):
+        # Hitung rata-rata per sample, bukan keseluruhan panelist
+        scores = edited.groupby("Sample")[params].mean()
 
-            fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+        fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+        angles = np.linspace(0, 2 * np.pi, len(params), endpoint=False)
+        
+        for sm in scores.index:
+            values = np.concatenate((scores.loc[sm].values, [scores.loc[sm].values[0]]))
+            angles_loop = np.concatenate((angles, [angles[0]]))
+            ax.plot(angles_loop, values, label=sm)
+            ax.fill(angles_loop, values, alpha=0.1)
+        
+        ax.set_xticks(angles)
+        ax.set_xticklabels(params)
+        ax.set_title("Trained Panelist – Average Sensory Profile (0–5)")
+        ax.legend()
+        
+        st.pyplot(fig)
 
-            angles = np.linspace(0, 2 * np.pi, len(params), endpoint=False)
-            angles = np.concatenate((angles, [angles[0]]))
-            values = np.concatenate((scores.values, [scores.values[0]]))
 
-            ax.plot(angles, values)
-            ax.fill(angles, values, alpha=0.25)
-            ax.set_xticks(angles[:-1])
-            ax.set_xticklabels(params)
-            ax.set_title("Trained Panelist – Average Sensory Profile (0–5)")
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
+        buf.seek(0)
 
-            st.pyplot(fig)
-
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
-            buf.seek(0)
-
-            st.download_button(
+        st.download_button(
                 label="Download Radar Chart (PNG)",
                 data=buf,
                 file_name="radar_trained.png",
