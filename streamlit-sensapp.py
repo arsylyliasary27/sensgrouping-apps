@@ -275,7 +275,7 @@ elif menu == "QDA-PCA Evaluation":
 # ===================================================
 elif menu == "QDA-Radar Chart Evaluation":
     st.title("Radar Chart Visualization for Sensory Profiling")
-    mode = st.radio("Select Panelist Mode", ["Untrained Panelist","Trained Panelist"])
+    mode = st.radio("Select Panelist Mode", ["CATA","RATA"])
 
     sample_names = st.text_area("Sample Names (one per line)", value="Sample1\nSample2\nSample3")
     parameter_list = st.text_area("Sensory Parameters (one per line)", value="Sweet\nBitter\nCreamy\nRancid\nEggy")
@@ -284,7 +284,7 @@ elif menu == "QDA-Radar Chart Evaluation":
 
     num_panel = st.number_input("Number of panelists", min_value=1, value=5)
 
-    if mode=="Untrained Panelist":
+    if mode=="CATA Panelist":
         st.subheader("Input: Parameter mentioned by each panelist")
         rows=[]
         for i in range(num_panel):
@@ -297,7 +297,7 @@ elif menu == "QDA-Radar Chart Evaluation":
         for p in params: col_cfg[p]=st.column_config.CheckboxColumn()
         edited=st.data_editor(df,width="stretch",column_config=col_cfg)
 
-        if st.button("Generate Radar Chart (Untrained)"):
+        if st.button("Generate Radar Chart (CATA)"):
             scores=edited.groupby("Sample")[params].sum()
             fig, ax=plt.subplots(figsize=(6,6), subplot_kw=dict(polar=True))
             angles=np.linspace(0,2*np.pi,len(params),endpoint=False)
@@ -313,7 +313,7 @@ elif menu == "QDA-Radar Chart Evaluation":
             buf=io.BytesIO()
             fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
             buf.seek(0)
-            st.download_button("Download radar chart (.png)", data=buf, file_name="radar_chart_untrained.png", mime="image/png")
+            st.download_button("Download radar chart (.png)", data=buf, file_name="radar_chart_CATA.png", mime="image/png")
 
     else:
         st.subheader("Input: Parameter scores per panelist (0-5)")
@@ -328,7 +328,7 @@ elif menu == "QDA-Radar Chart Evaluation":
         for p in params: col_cfg[p]=st.column_config.SelectboxColumn(options=[0,1,2,3,4,5])
         edited=st.data_editor(df,width="stretch",column_config=col_cfg)
 
-        if st.button("Generate Radar Chart (Trained)"):
+        if st.button("Generate Radar Chart (RATA)"):
             scores = edited.groupby("Sample")[params].mean()
             fig, ax = plt.subplots(figsize=(6,6), subplot_kw=dict(polar=True))
             angles = np.linspace(0, 2*np.pi, len(params), endpoint=False)
@@ -344,4 +344,4 @@ elif menu == "QDA-Radar Chart Evaluation":
             buf=io.BytesIO()
             fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
             buf.seek(0)
-            st.download_button("Download radar chart (.png)", data=buf, file_name="radar_chart_trained.png", mime="image/png")
+            st.download_button("Download radar chart (.png)", data=buf, file_name="radar_chart_RATA.png", mime="image/png")
