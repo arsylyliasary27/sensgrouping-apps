@@ -64,6 +64,7 @@ if menu == "5-Scale Evaluation":
     st.subheader("Score Recapitulation")
     st.dataframe(edited_data_numeric)
     st.write("Based on ISO 22935-3, the result will be considered as within spec if score ≥ 3.5")
+
     # Download Excel
     def to_excel(df):
         output = io.BytesIO()
@@ -187,62 +188,87 @@ elif menu == "Grouping Evaluation":
         st.download_button("Download dendrogram plot (.png)", data=buf2, file_name="dendrogram.png", mime="image/png")
 
 # ===================================================
-# 2. DESCRIPTIVE RESULT (PCA)
+# 2. DESCRIPTIVE RESULT (PCA) - MODIFIED
 # ===================================================
 elif menu == "QDA-PCA Evaluation":
-    st.title("Principal Component Analysis of Sensory Parameters")
+    st.title("PCA Analysis for Sensory Evaluation")
+    
+    # Input sample, panelist, parameter
     sample_names = st.text_area("Sample Names (one per line)", value="Sample1\nSample2\nSample3\nSample4\nSample5")
-    panelist_names = st.text_area("Panelist Names (one per line)", value="P1\nP2\nP3\nP4\nP5\nP6\nP7")
-    parameter_list = st.text_area("Sensory Parameters (one per line)", value="Eggy\nRancid\nCowy\nBitter\nSweet\nMilkiness\nCreamy\nStrange")
+    panelist_names = st.text_area("Panelist Names (one per line)", value="Panel1\nPanel2\nPanel3\nPanel4\nPanel5")
+    parameter_list = st.text_area("Sensory Parameters (one per line)", value="Colour\nVanilla\nSweet\nBitter\nShininess\nChocolate")
 
     sample_names = sample_names.strip().split("\n")
     panelist_names = panelist_names.strip().split("\n")
     params = parameter_list.strip().split("\n")
 
-    label_options = ["more", "slightly more", "comparable", "slightly less", "less"]
-    score_map = {"more":1,"slightly more":0.5,"comparable":0,"slightly less":-0.5,"less":-1}
-    def convert_label_to_score(x):
-        if pd.isna(x) or x=="": return np.nan
-        return score_map.get(x,np.nan)
-
-    # Data editor
-    rows=[]
+    # Create data editor for panelist scoring
+    rows = []
     for pl in panelist_names:
         for sm in sample_names:
-            row={"Panelist":pl,"Sample":sm}
-            for p in params: row[p]=""
+            row = {"Panelist": pl, "Sample": sm}
+            for p in params:
+                row[p] = 0
             rows.append(row)
-    data_input=pd.DataFrame(rows)
-    col_config={"Panelist":st.column_config.TextColumn(disabled=True),"Sample":st.column_config.TextColumn(disabled=True)}
-    for p in params: col_config[p]=st.column_config.SelectboxColumn(options=label_options)
-    edited_data=st.data_editor(data_input,width="stretch",column_config=col_config)
 
-    if st.button("Run PCA Analysis"):
-        numeric=edited_data.copy()
-        for col in params: numeric[col]=numeric[col].apply(convert_label_to_score)
-        mean_by_sample=numeric.groupby("Sample")[params].mean()
+    col_config = {"Panelist": st.column_config.TextColumn(disabled=True),
+                  "Sample": st.column_config.TextColumn(disabled=True)}
+    for p in params:
+        col_config[p] = st.column_config.SelectboxColumn(options=[0,1,2,3,4,5])
+
+    edited_data = st.data_editor(pd.DataFrame(rows), width="stretch", column_config=col_config)
+
+    if st.button("Run PCA"):
+        # Convert to numeric
+        numeric = edited_data.copy()
+        for col in params:
+            numeric[col] = pd.to_numeric(numeric[col])
+
+        # Average score per sample
+        mean_by_sample = numeric.groupby("Sample")[params].mean()
         st.subheader("Average Score Per Sample")
         st.dataframe(mean_by_sample)
 
-        scaler=StandardScaler()
-        scaled=scaler.fit_transform(mean_by_sample)
-        pca=PCA(n_components=2)
-        pcs=pca.fit_transform(scaled)
-        pc_df=pd.DataFrame(pcs, columns=["PC1","PC2"], index=mean_by_sample.index)
+        # Standardize and PCA
+        scaler = StandardScaler()
+        scaled = scaler.fit_transform(mean_by_sample)
+        pca = PCA(n_components=2)
+        pcs = pca.fit_transform(scaled)
+        pc_df = pd.DataFrame(pcs, columns=["PC1","PC2"], index=mean_by_sample.index)
 
-        st.subheader("PCA Score Plot")
-        fig, ax=plt.subplots(figsize=(7,6))
-        ax.scatter(pc_df["PC1"], pc_df["PC2"])
-        for s in pc_df.index: ax.text(pc_df.loc[s,"PC1"], pc_df.loc[s,"PC2"], s)
+        # PCA biplot with SPSS/XLSTAT-style scaling
+        fig, ax = plt.subplots(figsize=(8,6))
+
+        # Plot samples
+        ax.scatter(pc_df["PC1"], pc_df["PC2"], color='red', s=50)
+        for s in pc_df.index:
+            ax.text(pc_df.loc[s,"PC1"], pc_df.loc[s,"PC2"], s, color='red', fontsize=10, fontweight='bold')
+
+        # Scale loadings like SPSS/XLSTAT (correlation circle)
+        loadings = pca.components_.T
+        scale_factor = np.max(np.abs(pcs)) * 0.7
+        for i, param in enumerate(params):
+            ax.arrow(0, 0, loadings[i,0]*scale_factor, loadings[i,1]*scale_factor, 
+                     color='blue', head_width=0.1, length_includes_head=True)
+            ax.text(loadings[i,0]*scale_factor*1.1, loadings[i,1]*scale_factor*1.1, 
+                    param, color='blue', fontsize=10, fontweight='bold')
+
+        # Axes labels with explained variance
+        ax.set_xlabel(f"PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)")
+        ax.set_ylabel(f"PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)")
+        ax.axhline(0, color='grey', linestyle='--')
+        ax.axvline(0, color='grey', linestyle='--')
+        ax.set_title("PCA Biplot")
+        ax.grid(True)
+        ax.set_aspect('equal')
+
         st.pyplot(fig)
-        buf=io.BytesIO()
+
+        # Download plot
+        buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
         buf.seek(0)
-        st.download_button("Download PCA plot (.png)", data=buf, file_name="pca_plot.png", mime="image/png")
-
-        loadings=pd.DataFrame(pca.components_.T, index=params, columns=["PC1","PC2"])
-        st.subheader("PCA Loadings")
-        st.dataframe(loadings)
+        st.download_button("Download PCA (.png)", data=buf, file_name="pca_biplot.png", mime="image/png")
 
 # ===================================================
 # 3. RADAR CHART
